@@ -64,7 +64,7 @@ test("delegate validates cwd, never passes model, stays detached, and followup p
     await assert.rejects(() => service.delegate({ prompt: "bad", cwd: join(home, "missing") }), /cwd does not exist/);
     assert.equal(api.calls.length, beforeInvalid);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -86,7 +86,7 @@ test("delegate read-only is only a bridge claim and does not mutate DSH permissi
     assert.equal(claim?.mode, "read-only");
     assert.equal(delegated.workspaceClaimSemantics.controlsDshSandbox, false);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -114,7 +114,7 @@ test("delegate retains the task mapping when route verification fails and does n
     assert.equal(status.coordinationFailure?.code, "model_unroutable");
     assert.equal(api.calls.some((call) => call.method === "session.prompt"), false);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -140,7 +140,7 @@ test("delegate never claims or prompts when the initial route record cannot pers
     assert.equal(api.calls.some((call) => call.method === "session.prompt"), false);
     assert.deepEqual(await new WorkspaceClaimStore(home).list(), []);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -228,7 +228,7 @@ test("status separates availability from execution and reports terminal_missing_
     });
     assert.equal(missing.running, null);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -271,7 +271,7 @@ test("status does not report a vanished active turn as still running after Host 
     assert.equal(status.finalMessageStatus, "terminal_missing_final");
     assert.equal((await ledger.snapshot(task.taskId)).lastKnownExecutionStatus, "interrupted");
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -313,7 +313,7 @@ test("cancel turn preserves queue while cancel queue performs non-atomic per-ite
     assert.equal(queue.failed.length, 1);
     assert.equal(api.calls.filter((call) => call.method === "session.updateQueue").length, 3);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -342,7 +342,7 @@ test("wait is bounded and tail returns task cursors plus current pending snapsho
     assert.equal(tailed.nextCursor, 0);
     assert.equal(tailed.delivery.startsWith("at-least-once"), true);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -403,7 +403,7 @@ test("followup refreshes route state and rejects stale cursor or revision views 
     assert.equal(typeof result.issuedRpcId, "string");
     assert.equal((await ledger.tail(task.taskId, 0, 10)).records.some((record) => record.type === "bridge/prompt-issued"), true);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -463,7 +463,7 @@ test("status and tail hydrate conversation content from live DSH history without
     assert.notEqual(offlineTail.contentUnavailable, false);
     assert.equal(offlineTail.events.some((event) => JSON.stringify(event.digest).includes("live final only")), false);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -501,7 +501,7 @@ test("manual preset delegation verifies roster then create then mapping/track th
     assert.deepEqual(status.route, persisted.route);
     assert.equal(status.coordinationFailure, null);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -525,7 +525,7 @@ test("manual preset delegation missing preset fails before create and does not m
     assert.equal(api.calls.some((call) => call.method === "session.prompt"), false);
     assert.equal((await tasks.list()).length, 0);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -551,7 +551,7 @@ test("manual preset delegation broken preset fails with bounded details before c
     assert.equal(api.calls.some((call) => call.method === "session.prompt"), false);
     assert.equal((await tasks.list()).length, 0);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -590,7 +590,7 @@ test("manual preset delegation mismatch retains mapping and does not claim, read
     assert.equal(status.coordinationFailure?.code, "resolved_preset_mismatch");
     assert.equal(status.coordinationFailure?.promptSent, false);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -610,7 +610,7 @@ test("manual preset delegation with absent resolved preset continues as verifica
     assert.equal(delegated.requestedPreset, "preset-1");
     assert.equal("resolvedPreset" in delegated, false);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -643,7 +643,7 @@ test("manual preset delegation rechecks live preset immediately before prompt an
     assert.equal(mappedTask?.route?.resolvedPreset, "externally-selected-preset");
     assert.equal((await new WorkspaceClaimStore(home).get(mappedTask!.taskId))?.mode, "exclusive-write");
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -663,6 +663,6 @@ test("DSH-default delegation does not read roster and reports not-required with 
     assert.equal(delegated.resolvedPreset, "default-preset");
     assert.equal(api.calls.some((call) => call.method === "agentPreset.list"), false);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

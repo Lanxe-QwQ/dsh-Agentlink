@@ -305,7 +305,7 @@ async function main(): Promise<void> {
     });
     const report = await runDoctor(config, new DshClient(config.hostUrl, config.requestTimeoutMs), async () => dshVersion);
     if (report.ok) console.log(`Host check: ${report.compatibility}`);
-    else console.log(`Host check: not connected; start it with ${report.startCommand}`);
+    else console.log(`Host check: not connected; ${"startCommand" in report ? `start it with ${report.startCommand}` : "refresh the configured DSH connection"}`);
   }
 
   console.log(CODEX_RESTART_HINT);

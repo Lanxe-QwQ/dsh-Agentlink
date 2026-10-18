@@ -1,5 +1,15 @@
 # Compatibility matrix
 
+## This fork: authenticated Remote API
+
+DSH **0.2.1-rc.2** was validated on native Windows with Node **24.19.0** on
+2026-10-18. See [Desktop / Windows setup](desktop-remote.md). The isolated real
+DSH Host plus a deterministic loopback model stub passed connection publication,
+authentication, detached delegation, final-result collection, same-session
+follow-up, and cancellation. No external model service was called. Question and
+approval adapters have protocol coverage; live human approval remains unverified.
+The record below describes the original legacy backend.
+
 This page records which DSH versions dsh-Agentlink has actually been tested against. Version records are diagnostic evidence, not a runtime gate; the bridge gates on capability probes, not on version strings.
 
 ## Tested compatibility targets

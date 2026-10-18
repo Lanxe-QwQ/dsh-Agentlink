@@ -160,12 +160,12 @@ test("stop waits for detached reconciliation and prevents new reconciliation aft
     const callsAfterStop = snapshotCalls;
     await internals.reconcileSession("root-session");
     assert.equal(snapshotCalls, callsAfterStop, "no reconciliation may start after stop begins");
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   } finally {
     releaseSnapshot.resolve();
     await reconciliation?.catch(() => undefined);
     await manager.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -253,7 +253,7 @@ test("buffer draining bumps revision only for durable frames", async () => {
   } finally {
     releaseSnapshot.resolve();
     await manager.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -316,7 +316,7 @@ test("buffered queue snapshot bumps once for live view and not again when draine
   } finally {
     releaseSnapshot.resolve();
     await manager.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -414,7 +414,7 @@ test("queue snapshots bump on durable or local live-view changes while jobs bump
     assert.equal((await ledger.snapshot(task.taskId)).cursor, cursor);
     assert.equal(manager.snapshot().revision, revision);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -504,7 +504,7 @@ test("connection manager subscribes before history recovery, merges live frames,
   } finally {
     await manager.stop();
     await host.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -557,7 +557,7 @@ test("pending question responses are typed, non-retried, and tombstoned against 
   } finally {
     await manager.stop();
     await host.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -593,7 +593,7 @@ test("mux disconnect changes availability without changing last execution state"
   } finally {
     await manager.stop();
     await host.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -623,7 +623,7 @@ test("queue cancellation is unavailable until the current mux epoch supplies a q
   } finally {
     await manager.stop();
     await host.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -673,7 +673,7 @@ test("reconnect withdraws interactions absent from the replay baseline and can r
   } finally {
     await manager.stop();
     await host.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -705,7 +705,7 @@ test("connected empty Host returns a clean session_not_found status for an exist
   } finally {
     await manager.stop();
     await host.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -818,7 +818,7 @@ test("thousands of top-level projections are dropped while one following jobs fr
   } finally {
     await manager.stop();
     await host.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -907,6 +907,6 @@ test("high-frequency assistant content-stream progress is dropped from the persi
   } finally {
     await manager.stop();
     await host.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

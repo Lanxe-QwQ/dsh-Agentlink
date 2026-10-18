@@ -6,6 +6,29 @@ import { test } from "node:test";
 
 import { withFileLock } from "../src/file-lock.js";
 
+test("Windows lock acquisition retries a delete-pending EPERM without deleting an unowned lock", { skip: process.platform !== "win32" }, async (context) => {
+  const base = await fs.mkdtemp(join(tmpdir(), "flock-win-pending-"));
+  context.after(() => fs.rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
+  const lock = join(base, "lock");
+  const mkdir = fs.mkdir.bind(fs);
+  const remove = fs.rm.bind(fs);
+  await mkdir(lock);
+  await fs.writeFile(join(lock, "owner.json"), "competing-owner");
+  let attempts = 0;
+  context.mock.method(fs, "mkdir", async (...args: Parameters<typeof fs.mkdir>) => {
+    if (args[0] === lock && attempts++ === 0) throw Object.assign(new Error("delete pending"), { code: "EPERM" });
+    if (args[0] === lock && attempts === 2) {
+      assert.equal(await fs.readFile(join(lock, "owner.json"), "utf8"), "competing-owner");
+      // The competing fixture owner releases its own directory before retry.
+      await remove(lock, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+    }
+    return mkdir(...args);
+  });
+  const result = await withFileLock(lock, async () => "owned", { retryMs: 1 });
+  assert.equal(result, "owned");
+  assert.equal(attempts, 2);
+});
+
 const maker = (token: string, pid = process.pid) =>
   JSON.stringify({ pid, token, createdAt: new Date().toISOString() });
 const timeoutGuidancePattern = /timed out acquiring file lock .*npm run doctor.*KNOWN_ISSUES\.md.*manual cleanup/;
@@ -21,7 +44,7 @@ test("withFileLock retries on ENOENT after mkdir (lost race), then acquires and 
       const [path] = args;
       if (path === ownerPath && interceptOnce) {
         interceptOnce = false;
-        await fs.rm(lockDir, { recursive: true, force: true });
+        await fs.rm(lockDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
       }
       return writeFile(...args);
     });
@@ -37,7 +60,7 @@ test("withFileLock retries on ENOENT after mkdir (lost race), then acquires and 
     // lock fully released after work
     await assert.rejects(fs.stat(lockDir));
   } finally {
-    await fs.rm(base, { recursive: true, force: true });
+    await fs.rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -60,7 +83,7 @@ test("withFileLock on EEXIST (competitor replaces dir) retries, never deletes co
       const [path] = args;
       if (path === ownerPath && interceptOnce) {
         interceptOnce = false;
-        await fs.rm(lockDir, { recursive: true, force: true });
+        await fs.rm(lockDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
         await mkdir(lockDir, { recursive: true });
         await writeFile(ownerPath, competitorOwner, { flag: "wx" });
       }
@@ -86,7 +109,7 @@ test("withFileLock on EEXIST (competitor replaces dir) retries, never deletes co
     assert.equal(await fs.readFile(ownerPath, "utf8"), competitorOwner);
     await fs.stat(lockDir); // still exists
   } finally {
-    await fs.rm(base, { recursive: true, force: true });
+    await fs.rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -121,7 +144,7 @@ test("withFileLock fails closed instead of reaping an observed stale owner", asy
     assert.equal(await fs.readFile(ownerPath, "utf8"), staleOwner);
     await fs.stat(lockDir);
   } finally {
-    await fs.rm(base, { recursive: true, force: true });
+    await fs.rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -140,7 +163,7 @@ test("unexpected owner write errors preserve a replacement owner", async (t) => 
       const [path] = args;
       if (path === ownerPath && interceptOnce) {
         interceptOnce = false;
-        await fs.rm(lockDir, { recursive: true, force: true });
+        await fs.rm(lockDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
         await mkdir(lockDir, { recursive: true });
         await writeFile(ownerPath, competitorOwner, { flag: "wx" });
         throw Object.assign(new Error("synthetic owner write failure"), { code: "ENOSPC" });
@@ -159,7 +182,7 @@ test("unexpected owner write errors preserve a replacement owner", async (t) => 
     assert.equal(await fs.readFile(ownerPath, "utf8"), competitorOwner);
     await fs.stat(lockDir);
   } finally {
-    await fs.rm(base, { recursive: true, force: true });
+    await fs.rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -181,7 +204,7 @@ test("unexpected owner write error preserves a competitor's empty replacement di
         // writes owner.json. Our owner write then fails with an unexpected error.
         // This is the exact window where the old rmdir cleanup would delete the
         // competitor's in-progress lock.
-        await fs.rm(lockDir, { recursive: true, force: true });
+        await fs.rm(lockDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
         await mkdir(lockDir, { recursive: true });
         throw Object.assign(new Error("synthetic owner write failure"), { code: "EIO" });
       }
@@ -201,6 +224,6 @@ test("unexpected owner write error preserves a competitor's empty replacement di
     await assert.rejects(fs.stat(ownerPath), /ENOENT/);
     assert.deepEqual(await fs.readdir(lockDir), []);
   } finally {
-    await fs.rm(base, { recursive: true, force: true });
+    await fs.rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

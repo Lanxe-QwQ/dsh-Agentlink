@@ -6,12 +6,12 @@ import { pathToFileURL } from "node:url";
 
 import type { BridgeConfig } from "./config.js";
 import { loadConfig } from "./config.js";
-import { DshClient } from "./dsh-client.js";
+import { createDshClient } from "./client-factory.js";
+import { DSH_COMPATIBILITY_TARGETS } from "./compatibility.js";
 import type { DshApi } from "./dsh-types.js";
 import { collectLockDiagnostics } from "./lock-doctor.js";
 
 const execFileAsync = promisify(execFile);
-const TESTED_CLI_VERSIONS = ["0.1.0-rc.6", "0.1.0-rc.7"] as const;
 
 export type CliVersionProbe = () => Promise<string | undefined>;
 
@@ -72,6 +72,7 @@ export async function runDoctor(
   cliVersionProbe: CliVersionProbe = probeDshCliVersion,
 ) {
   const cliVersion = await cliVersionProbe();
+  const TESTED_CLI_VERSIONS = DSH_COMPATIBILITY_TARGETS[config.protocol ?? "legacy"];
   const lockDiagnostics = await collectLockDiagnostics(config.homeDir);
   try {
     const description = await api.hostDescribe();
@@ -128,10 +129,14 @@ export async function runDoctor(
       checkedAt: new Date().toISOString(),
       dshCliVersion: cliVersion ?? null,
       testedCliVersions: [...TESTED_CLI_VERSIONS],
-      availability: "host_unreachable",
+      availability: config.protocol === "remote" && error instanceof Error && /HTTP 401\b/.test(error.message) ? "authentication_required" : "host_unreachable",
       error: error instanceof Error ? { name: error.name, message: error.message } : { message: String(error) },
-      startCommand: startCommand(config.hostUrl),
-      note: "The bridge never starts, daemonizes, or stops dsh web; run this command yourself or manage it with the OS.",
+      ...(config.protocol === "remote" ? {
+        note: "Refresh DSH_CONNECTION_FILE using the running Host's connection publisher or a fresh launch URL. The bridge never starts or stops DSH.",
+      } : {
+        startCommand: startCommand(config.hostUrl),
+        note: "The bridge never starts, daemonizes, or stops dsh web; run this command yourself or manage it with the OS.",
+      }),
       lockDiagnostics,
     };
   }
@@ -139,7 +144,7 @@ export async function runDoctor(
 
 async function main() {
   const config = loadConfig();
-  const report = await runDoctor(config, new DshClient(config.hostUrl, config.requestTimeoutMs));
+  const report = await runDoctor(config, createDshClient(config));
   const output = JSON.stringify(report, null, 2);
   if (report.ok) console.log(output);
   else {

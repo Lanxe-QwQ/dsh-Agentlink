@@ -257,6 +257,6 @@ test("bridge process exits cleanly when MCP stdin reaches EOF", { timeout: 10_00
     if (child !== undefined) child.kill("SIGKILL");
     await host?.close().catch(() => undefined);
     await mkdir(home, { recursive: true }).catch(() => undefined);
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { BridgeConfig } from "./config.js";
 import { DshRpcError, DshTransportError } from "./dsh-client.js";
+import { DSH_COMPATIBILITY_TARGETS } from "./compatibility.js";
 import type { EventLedger, LedgerSnapshot } from "./event-ledger.js";
 import type {
   DshApi,
@@ -18,7 +19,7 @@ import type {
 } from "./dsh-types.js";
 import type { TaskRecord, TaskStore } from "./task-store.js";
 
-export const TESTED_DSH_VERSIONS = ["0.1.0-rc.6", "0.1.0-rc.7"] as const;
+export const TESTED_DSH_VERSIONS = DSH_COMPATIBILITY_TARGETS.legacy;
 
 export type HostAvailability = "connecting" | "connected" | "host_unreachable" | "stopped";
 
@@ -290,7 +291,7 @@ export class DshConnectionManager implements DshConnection {
       baseUrl: config.hostUrl,
       connectionEpoch: 0,
       revision: 0,
-      testedDshVersions: [...TESTED_DSH_VERSIONS],
+      testedDshVersions: [...DSH_COMPATIBILITY_TARGETS[config.protocol ?? "legacy"]],
       compatibility: "unknown",
       ...(config.declaredDshVersion === undefined ? {} : { declaredDshVersion: config.declaredDshVersion }),
       capabilities: {
@@ -534,8 +535,9 @@ export class DshConnectionManager implements DshConnection {
       });
     }
     const declaredVersion = this.config.declaredDshVersion;
-    const testedList = TESTED_DSH_VERSIONS.join(" or ");
-    const declaredIsTested = declaredVersion !== undefined && (TESTED_DSH_VERSIONS as readonly string[]).includes(declaredVersion);
+    const targets = DSH_COMPATIBILITY_TARGETS[this.config.protocol ?? "legacy"];
+    const testedList = targets.join(" or ");
+    const declaredIsTested = declaredVersion !== undefined && targets.includes(declaredVersion);
     const compatibility = declaredIsTested ? "capability-probed" : "untested";
     const warnings = [
       declaredVersion === undefined
@@ -554,7 +556,7 @@ export class DshConnectionManager implements DshConnection {
       revision: this.state.revision,
       connectedAt: new Date().toISOString(),
       hostDescribeProductVersion: description.version,
-      testedDshVersions: [...TESTED_DSH_VERSIONS],
+      testedDshVersions: [...targets],
       compatibility,
       warning: warnings.join("; "),
       ...(this.config.declaredDshVersion === undefined ? {} : { declaredDshVersion: this.config.declaredDshVersion }),

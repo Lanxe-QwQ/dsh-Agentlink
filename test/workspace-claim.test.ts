@@ -1,3 +1,4 @@
+import { assertMode } from "./support/platform.js";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -31,10 +32,10 @@ test("WorkspaceClaimStore persists only coordination fields with private permiss
     assert.equal(typeof raw.createdAt, "string");
     assert.deepEqual(await store.get(rootTask), claim);
     assert.deepEqual(await store.list(), [claim]);
-    assert.equal((await stat(join(home, "claims"))).mode & 0o777, 0o700);
-    assert.equal((await stat(path)).mode & 0o777, 0o600);
+    await assertMode(join(home, "claims"), 0o700);
+    await assertMode(path, 0o600);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -83,7 +84,7 @@ test("WorkspaceClaimStore allows overlapping read-only claims but rejects exclus
     );
     assert.equal((await store.list()).length, 3);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -122,7 +123,7 @@ test("WorkspaceClaimStore release removes claims and reports stale views", async
       (error: unknown) => error instanceof WorkspaceClaimConflictError && error.code === "stale_view",
     );
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -158,7 +159,7 @@ test("WorkspaceClaimStore serializes two instances through the registry lock", a
     assert.equal((await left.list()).length, 1);
     assert.deepEqual(await left.list(), await right.list());
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -192,6 +193,6 @@ test("WorkspaceClaimStore rejects malformed persisted claims as stale views", as
       (error: unknown) => error instanceof WorkspaceClaimConflictError && error.code === "stale_view",
     );
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

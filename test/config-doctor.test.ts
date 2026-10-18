@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { symlinkOrSkip } from "./support/platform.js";
 import fs from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,6 +27,18 @@ function configFor(homeDir: string, hostUrl = "http://127.0.0.1:3080") {
 
 const ownerFile = (token: string, pid = 4242) =>
   JSON.stringify({ pid, token, createdAt: "2024-01-01T00:00:00.000Z" });
+
+test("Remote doctor reports expired authentication without suggesting a second Host", async () => {
+  const home = await makeHome();
+  try {
+    const api = new FakeDshApi();
+    api.hostDescribe = async () => { throw new DshTransportError("DSH Remote session/modelCatalog: HTTP 401"); };
+    const report = await runDoctor({ ...configFor(home), protocol: "remote" }, api, async () => undefined);
+    assert.equal(report.ok, false);
+    assert.equal(report.availability, "authentication_required");
+    assert.equal("startCommand" in report, false);
+  } finally { await fs.rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }); }
+});
 
 async function writeLock(homeDir: string, relativeLockDir: string, owner?: string) {
   const lockDir = join(homeDir, relativeLockDir);
@@ -93,7 +106,7 @@ test("lock diagnostics report missing paths as structural observations", async (
     assert.equal(diagnostics.ledgerEntriesObserved, 0);
     assert.equal(diagnostics.ledgerEntriesTruncated, false);
   } finally {
-    await fs.rm(homeDir, { recursive: true, force: true });
+    await fs.rm(homeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -116,7 +129,7 @@ test("lock diagnostics never read owner.json content and JSON output never expos
     assert.equal(JSON.stringify(diagnostics).includes("createdAt"), false);
   } finally {
     await fs.chmod(join(homeDir, "claims", "registry.lock", "owner.json"), 0o600).catch(() => undefined);
-    await fs.rm(homeDir, { recursive: true, force: true });
+    await fs.rm(homeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -137,7 +150,7 @@ test("single-lock entry observation stops at max plus one and reports truncation
     assert.equal(registry.ownerPresence, "present");
     assert.equal(JSON.stringify(diagnostics).includes("SECRET-not-read"), false);
   } finally {
-    await fs.rm(homeDir, { recursive: true, force: true });
+    await fs.rm(homeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -164,11 +177,11 @@ test("ledgers enumeration uses a max-plus-one opendir observation rather than a 
       true,
     );
   } finally {
-    await fs.rm(homeDir, { recursive: true, force: true });
+    await fs.rm(homeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
-test("lock diagnostics report symlink types without following targets", async () => {
+test("lock diagnostics report symlink types without following targets", async (context) => {
   const homeDir = await makeHome();
   const externalDir = await fs.mkdtemp(join(tmpdir(), "doctor-symlink-ext-"));
   try {
@@ -176,7 +189,7 @@ test("lock diagnostics report symlink types without following targets", async ()
     await fs.mkdir(target, { recursive: true });
     await fs.writeFile(join(target, "owner.json"), ownerFile("SECRET-external-token"), { flag: "wx" });
     await fs.mkdir(join(homeDir, "claims"), { recursive: true });
-    await fs.symlink(target, join(homeDir, "claims", "registry.lock"));
+    if (!(await symlinkOrSkip(context, target, join(homeDir, "claims", "registry.lock")))) return;
 
     const diagnostics = await collectLockDiagnostics(homeDir);
     const registry = diagnostics.locks.find((lock) => lock.kind === "registry")!;
@@ -185,8 +198,8 @@ test("lock diagnostics report symlink types without following targets", async ()
     assert.equal(registry.ownerPresence, "not-observed");
     assert.equal(JSON.stringify(diagnostics).includes("SECRET-external-token"), false);
   } finally {
-    await fs.rm(homeDir, { recursive: true, force: true });
-    await fs.rm(externalDir, { recursive: true, force: true });
+    await fs.rm(homeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+    await fs.rm(externalDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -218,6 +231,6 @@ test("doctor includes content-free lock diagnostics on both success and Host fai
     assert.equal(JSON.stringify(failed).includes(token), false);
     assert.equal(failedApi.calls.some((call) => call.method === "session.create"), false);
   } finally {
-    await fs.rm(homeDir, { recursive: true, force: true });
+    await fs.rm(homeDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

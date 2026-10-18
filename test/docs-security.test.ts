@@ -108,6 +108,6 @@ test("caller skill artifacts are generated from the canonical renderer", async (
     readFile(new URL("skill/claude-code-dsh/SKILL.md", root), "utf8"),
   ]);
 
-  assert.equal(codexSkill, renderDshSkill("codex"));
-  assert.equal(claudeCodeSkill, renderDshSkill("claude-code"));
+  assert.equal(codexSkill.replaceAll("\r\n", "\n"), renderDshSkill("codex"));
+  assert.equal(claudeCodeSkill.replaceAll("\r\n", "\n"), renderDshSkill("claude-code"));
 });
