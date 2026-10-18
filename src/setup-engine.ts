@@ -40,6 +40,8 @@ function directorySyncError(backupPath: string | undefined): Error {
 }
 
 function normalizeMode(mode: number): number {
+  // Windows exposes the read-only attribute, not POSIX owner/group permissions.
+  if (process.platform === "win32") return (mode & 0o200) === 0 ? 0o444 : 0o666;
   return mode & 0o777;
 }
 
@@ -83,7 +85,7 @@ export async function readConfigSnapshot(path: string): Promise<ConfigSnapshot> 
       return { content: await handle.readFile("utf8"), exists: true, mode: normalizeMode(details.mode) };
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      if (code === "ENOENT") return { content: "", exists: false, mode: 0o600 };
+      if (code === "ENOENT") return { content: "", exists: false, mode: normalizeMode(0o600) };
       if (code === "ELOOP") throw new Error(`refusing to replace symlinked config: ${path}`);
       throw error;
     } finally {
@@ -95,7 +97,7 @@ export async function readConfigSnapshot(path: string): Promise<ConfigSnapshot> 
     if (error.code === "ENOENT") return undefined;
     throw error;
   });
-  if (details === undefined) return { content: "", exists: false, mode: 0o600 };
+  if (details === undefined) return { content: "", exists: false, mode: normalizeMode(0o600) };
   if (details.isSymbolicLink()) throw new Error(`refusing to replace symlinked config: ${path}`);
   if (!details.isFile()) throw new Error(`config path is not a regular file: ${path}`);
 
@@ -108,7 +110,7 @@ export async function readConfigSnapshot(path: string): Promise<ConfigSnapshot> 
     }
     return { content: await handle.readFile("utf8"), exists: true, mode: normalizeMode(opened.mode) };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { content: "", exists: false, mode: 0o600 };
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { content: "", exists: false, mode: normalizeMode(0o600) };
     throw error;
   } finally {
     await handle?.close().catch(() => undefined);

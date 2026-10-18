@@ -160,7 +160,7 @@ test("MCP server registers the full typed surface and rejects a delegate model a
   } finally {
     await client.close();
     await server.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -286,6 +286,6 @@ test("dsh_wait defaults to compact terminal waiting and suppresses intermediate 
   } finally {
     await client.close();
     await server.close();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

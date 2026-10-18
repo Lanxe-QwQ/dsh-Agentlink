@@ -1,3 +1,4 @@
+import { assertMode, symlinkOrSkip } from "./support/platform.js";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -28,10 +29,10 @@ test("TaskStore persists only taskId to sessionId with private permissions", asy
     assert.deepEqual(Object.keys(raw).sort(), ["sessionId", "taskId"]);
     assert.deepEqual(await store.get(record.taskId), record);
     assert.deepEqual(await store.list(), [record]);
-    assert.equal((await stat(join(home, "tasks"))).mode & 0o777, 0o700);
-    assert.equal((await stat(path)).mode & 0o777, 0o600);
+    await assertMode(join(home, "tasks"), 0o700);
+    await assertMode(path, 0o600);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -51,7 +52,7 @@ test("TaskStore rejects invalid ids, malformed mappings, and content-bearing ext
     );
     await assert.rejects(() => store.get("dsh_000000000002"), TaskStoreError);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -76,9 +77,9 @@ test("TaskStore atomically creates and round-trips a strict route record", async
     ]);
     assert.deepEqual(record.route, initialRoute);
     assert.deepEqual(await store.get(record.taskId), record);
-    assert.equal((await stat(path)).mode & 0o777, 0o600);
+    await assertMode(path, 0o600);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -105,7 +106,7 @@ test("TaskStore updates a route without changing its mapping and survives a fres
     assert.deepEqual(updated.route, failedRoute);
     assert.deepEqual(await new TaskStore(home).get(created.taskId), updated);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -141,18 +142,18 @@ test("TaskStore rejects malformed and content-bearing route records", async () =
     );
     await assert.rejects(() => store.get("dsh_000000000003"), TaskStoreError);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
-test("TaskStore update refuses symlink and non-regular targets without leaving temp files", async () => {
+test("TaskStore update refuses symlink and non-regular targets without leaving temp files", async (context) => {
   const home = await mkdtemp(join(tmpdir(), "codex-dsh-store-"));
   try {
     const tasksDir = join(home, "tasks");
     await mkdir(tasksDir, { recursive: true });
     const outside = join(home, "outside.json");
     await writeFile(outside, "{}\n");
-    await symlink(outside, join(tasksDir, "dsh_000000000004.json"));
+    if (!(await symlinkOrSkip(context, outside, join(tasksDir, "dsh_000000000004.json")))) return;
     await mkdir(join(tasksDir, "dsh_000000000005.json"));
     const store = new TaskStore(home);
 
@@ -163,6 +164,6 @@ test("TaskStore update refuses symlink and non-regular targets without leaving t
       [],
     );
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

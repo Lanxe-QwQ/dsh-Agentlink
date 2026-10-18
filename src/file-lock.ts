@@ -43,7 +43,10 @@ export async function withFileLock<T>(
     try {
       await fs.mkdir(lockDir, { mode: 0o700 });
     } catch (error) {
-      if (errorCode(error) !== "EEXIST") throw error;
+      // Windows can report EPERM while another owner's removed directory is
+      // still delete-pending. Only retry acquisition; never reap that path.
+      const code = errorCode(error);
+      if (code !== "EEXIST" && !(process.platform === "win32" && code === "EPERM")) throw error;
       if (Date.now() >= deadline) throw lockTimeoutError(lockDir);
       await sleep(retryMs);
       continue;

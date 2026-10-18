@@ -1,7 +1,10 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import { readRemoteConnection } from "./remote-client.js";
 
 export interface BridgeConfig {
+  protocol?: "legacy" | "remote";
+  connectionFile?: string;
   hostUrl: string;
   homeDir: string;
   requestTimeoutMs: number;
@@ -67,6 +70,11 @@ function detectTimeZone(): string | undefined {
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
+  const protocol = env.DSH_PROTOCOL ?? "legacy";
+  if (protocol !== "legacy" && protocol !== "remote") throw new Error("DSH_PROTOCOL must be legacy or remote");
+  const connectionFile = env.DSH_CONNECTION_FILE?.trim();
+  if (protocol === "remote" && !connectionFile) throw new Error("Remote mode requires DSH_CONNECTION_FILE");
+  const remote = protocol === "remote" ? readRemoteConnection(connectionFile!) : undefined;
   const allowRemoteHost = booleanEnv(env.DSH_ALLOW_REMOTE_HOST);
   if (env.DSH_HOME !== undefined && env.DSH_HOME.trim() === "") throw new Error("DSH_HOME must not be empty");
   if (env.DSH_BRIDGE_HOME !== undefined && env.DSH_BRIDGE_HOME.trim() === "") {
@@ -79,7 +87,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
   const approvalTimeoutMs = optionalPositiveIntegerEnv(env.DSH_APPROVAL_TIMEOUT_MS);
 
   return {
-    hostUrl: normalizeHostUrl(env.DSH_HOST_URL ?? DEFAULT_HOST_URL, allowRemoteHost),
+    hostUrl: normalizeHostUrl(remote?.origin ?? env.DSH_HOST_URL ?? DEFAULT_HOST_URL, allowRemoteHost),
+    ...(protocol === "remote" ? { protocol, connectionFile: resolve(connectionFile!) } : {}),
     homeDir: resolve(env.DSH_BRIDGE_HOME ?? resolve(dshHome, "codex-bridge")),
     requestTimeoutMs: positiveIntegerEnv(env.DSH_REQUEST_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
     allowRemoteHost,

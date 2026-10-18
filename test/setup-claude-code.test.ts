@@ -1,3 +1,4 @@
+import { assertMode, symlinkOrSkip } from "./support/platform.js";
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -84,7 +85,7 @@ test("Claude Code setup parses flags consistently with the Codex setup", () => {
 
 test("Claude Code setup resolves an existing project directory and rejects file targets", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-project-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const filePath = join(directory, "not-a-project");
   await writeFile(filePath, "not a directory");
 
@@ -115,7 +116,7 @@ test("Claude Code version parser supports known CLI output formats", () => {
 
 test("Claude Code setup installs .mcp.json atomically and preserves private modes", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-setup-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const configPath = join(directory, ".mcp.json");
   const original = JSON.stringify({ mcpServers: { other: { command: "other" } } }, null, 2);
   await writeFile(configPath, original, { mode: 0o640 });
@@ -131,13 +132,13 @@ test("Claude Code setup installs .mcp.json atomically and preserves private mode
   assert.equal(result.changed, true);
   assert.notEqual(result.backupPath, undefined);
   assert.equal(await readFile(result.backupPath as string, "utf8"), original);
-  assert.equal((await stat(configPath)).mode & 0o777, 0o640);
+  await assertMode(configPath, 0o640);
   assert.deepEqual(parsed.mcpServers.dsh_agentlink, renderClaudeCodeOperation(operation));
 });
 
 test("Claude Code setup reports no-op when config already matches", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-setup-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const configPath = join(directory, ".mcp.json");
   const installPlan = planFor(directory);
   const operation = installPlan.operations[0];
@@ -152,18 +153,18 @@ test("Claude Code setup reports no-op when config already matches", async (conte
 
 test("Claude Code setup refuses symlinked project .mcp.json", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-setup-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const targetPath = join(directory, "target.json");
   const configPath = join(directory, ".mcp.json");
   await writeFile(targetPath, "{}\n");
-  await symlink(targetPath, configPath);
+  if (!(await symlinkOrSkip(context, targetPath, configPath))) return;
 
   await assert.rejects(() => readConfigSnapshot(configPath), /refusing to replace symlinked config/);
 });
 
 test("Claude Code setup refuses stale snapshots", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-setup-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const configPath = join(directory, ".mcp.json");
   await writeFile(configPath, `${JSON.stringify({ mcpServers: { other: { command: "before" } } }, null, 2)}\n`);
   const expected = await readConfigSnapshot(configPath);
@@ -176,7 +177,7 @@ test("Claude Code setup refuses stale snapshots", async (context) => {
 
 test("Claude Code setup installs MCP and project skill from one install plan", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-combined-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const configPath = join(directory, ".mcp.json");
   const skillPath = claudeCodeSkillTargetPath(directory);
 
@@ -192,7 +193,7 @@ test("Claude Code setup installs MCP and project skill from one install plan", a
 
 test("Claude Code setup preflights skill conflicts before mutating MCP config", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-combined-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const configPath = join(directory, ".mcp.json");
   const skillPath = claudeCodeSkillTargetPath(directory);
   await mkdir(join(directory, ".claude", "skills", "claude-code-dsh"), { recursive: true });
@@ -205,7 +206,7 @@ test("Claude Code setup preflights skill conflicts before mutating MCP config", 
 
 test("Claude Code setup installs the project skill by default and reports no-op when current", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-skill-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const skillPath = claudeCodeSkillTargetPath(directory);
   const canonical = await readCanonicalClaudeCodeSkill();
 
@@ -215,12 +216,12 @@ test("Claude Code setup installs the project skill by default and reports no-op 
   assert.deepEqual(first, { changed: true, path: skillPath });
   assert.deepEqual(second, { changed: false, path: skillPath });
   assert.equal(await readFile(skillPath, "utf8"), canonical);
-  assert.equal((await stat(skillPath)).mode & 0o777, 0o600);
+  await assertMode(skillPath, 0o600);
 });
 
 test("Claude Code setup refuses to overwrite a different project skill without --replace-skill", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-skill-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const skillPath = claudeCodeSkillTargetPath(directory);
   await mkdir(join(directory, ".claude", "skills", "claude-code-dsh"), { recursive: true });
   await writeFile(skillPath, "custom local skill\n");
@@ -234,7 +235,7 @@ test("Claude Code setup refuses to overwrite a different project skill without -
 
 test("Claude Code setup replaces a different project skill only with --replace-skill", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-skill-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const skillPath = claudeCodeSkillTargetPath(directory);
   await mkdir(join(directory, ".claude", "skills", "claude-code-dsh"), { recursive: true });
   await writeFile(skillPath, "old skill\n", { mode: 0o640 });
@@ -247,16 +248,16 @@ test("Claude Code setup replaces a different project skill only with --replace-s
   assert.notEqual(result.backupPath, undefined);
   assert.equal(await readFile(skillPath, "utf8"), "new skill\n");
   assert.equal(await readFile(result.backupPath as string, "utf8"), "old skill\n");
-  assert.equal((await stat(skillPath)).mode & 0o777, 0o640);
+  await assertMode(skillPath, 0o640);
 });
 
 test("Claude Code setup refuses symlinked project skill target or parent directories", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-skill-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const outside = await mkdtemp(join(tmpdir(), "dsh-agentlink-claude-outside-"));
-  context.after(() => rm(outside, { recursive: true, force: true }));
+  context.after(() => rm(outside, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
 
-  await symlink(outside, join(directory, ".claude"));
+  if (!(await symlinkOrSkip(context, outside, join(directory, ".claude")))) return;
   await assert.rejects(
     () => installClaudeCodeSkill({ projectRoot: directory, replaceSkill: false, content: "canonical skill\n" }),
     /symlinked directory/,
@@ -267,7 +268,7 @@ test("Claude Code setup refuses symlinked project skill target or parent directo
   const target = join(directory, ".claude", "skills", "claude-code-dsh", "SKILL.md");
   const outsideFile = join(outside, "SKILL.md");
   await writeFile(outsideFile, "outside\n");
-  await symlink(outsideFile, target);
+  if (!(await symlinkOrSkip(context, outsideFile, target))) return;
 
   await assert.rejects(
     () => installClaudeCodeSkill({ projectRoot: directory, replaceSkill: true, content: "canonical skill\n" }),

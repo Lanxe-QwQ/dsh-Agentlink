@@ -1,5 +1,9 @@
 # dsh-Agentlink
 
+此 Fork 新增 DSH 0.2 Remote 后端，并修复 Windows 原生安装问题。
+DSH 桌面版 **0.2.1-rc.2** 请参阅[桌面版 / Windows 接入说明](docs/desktop-remote.md)。
+原有 rc.6/rc.7 Web Host 连接方式仍为默认后端。
+
 ![dsh-Agentlink 首图](assets/dsh-agentlink-cover.webp)
 
 [![CI](https://github.com/hootandy321/dsh-Agentlink/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hootandy321/dsh-Agentlink/actions/workflows/ci.yml) [![GitHub Stars](https://img.shields.io/github/stars/hootandy321/dsh-Agentlink?style=flat-square&logo=github)](https://github.com/hootandy321/dsh-Agentlink/stargazers) [![License: MIT](https://img.shields.io/github/license/hootandy321/dsh-Agentlink?style=flat-square)](LICENSE) [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/) [![DSH plugin](https://img.shields.io/badge/DSH-plugin-4B6BFB?style=flat-square)](https://www.deepseek.com/harness/en/)

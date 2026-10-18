@@ -1,5 +1,9 @@
 # dsh-Agentlink
 
+This fork adds a DSH 0.2 Remote backend and native Windows installation fixes.
+For DSH Desktop **0.2.1-rc.2**, follow [Desktop / Windows setup](docs/desktop-remote.md).
+The original Web Host backend remains the default for rc.6/rc.7 installations.
+
 ![dsh-Agentlink cover](assets/dsh-agentlink-cover.webp)
 
 [![CI](https://github.com/hootandy321/dsh-Agentlink/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hootandy321/dsh-Agentlink/actions/workflows/ci.yml) [![GitHub Stars](https://img.shields.io/github/stars/hootandy321/dsh-Agentlink?style=flat-square&logo=github)](https://github.com/hootandy321/dsh-Agentlink/stargazers) [![License: MIT](https://img.shields.io/github/license/hootandy321/dsh-Agentlink?style=flat-square)](LICENSE) [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/) [![DSH plugin](https://img.shields.io/badge/DSH-plugin-4B6BFB?style=flat-square)](https://www.deepseek.com/harness/en/)

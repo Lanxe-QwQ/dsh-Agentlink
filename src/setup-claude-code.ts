@@ -450,7 +450,7 @@ async function reportDshHostReachability(
   if (report.ok) {
     console.log(`DSH Host reachability: reachable (${report.compatibility})`);
   } else if ("availability" in report && report.availability === "host_unreachable") {
-    console.log(`DSH Host reachability: unreachable; start it yourself with ${report.startCommand}`);
+    console.log(`DSH Host reachability: unreachable; ${"startCommand" in report ? `start it yourself with ${report.startCommand}` : "refresh the configured DSH connection"}`);
   } else {
     console.log(`DSH Host reachability: reachable but incompatible (${report.compatibility})`);
   }

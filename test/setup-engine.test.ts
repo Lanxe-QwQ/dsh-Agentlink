@@ -1,3 +1,4 @@
+import { assertMode, symlinkOrSkip } from "./support/platform.js";
 import assert from "node:assert/strict";
 import { chmod, lstat, mkdtemp, readdir, readFile, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,7 +9,7 @@ import { atomicInstallText, readConfigSnapshot } from "../src/setup-engine.js";
 
 async function withTempDir(context: { after: (fn: () => unknown) => void }, prefix = "dsh-agentlink-engine-"): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), prefix));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   return directory;
 }
 
@@ -33,7 +34,7 @@ test("setup engine creates a missing config as a private regular file", async (c
 
   assert.deepEqual(result, { changed: true });
   assert.equal(await readFile(configPath, "utf8"), 'model = "gpt-test"\n');
-  assert.equal((await stat(configPath)).mode & 0o777, 0o600);
+  await assertMode(configPath, 0o600);
 });
 
 test("setup engine preserves existing file mode and backup mode", async (context) => {
@@ -47,8 +48,8 @@ test("setup engine preserves existing file mode and backup mode", async (context
   assert.equal(result.changed, true);
   assert.notEqual(result.backupPath, undefined);
   assert.equal(await readFile(result.backupPath as string, "utf8"), 'model = "old"\n');
-  assert.equal((await stat(configPath)).mode & 0o777, 0o640);
-  assert.equal((await stat(result.backupPath as string)).mode & 0o777, 0o640);
+  await assertMode(configPath, 0o640);
+  await assertMode(result.backupPath as string, 0o640);
 });
 
 test("setup engine rejects symlinked and directory targets", async (context) => {
@@ -56,7 +57,7 @@ test("setup engine rejects symlinked and directory targets", async (context) => 
   const targetPath = join(directory, "target.toml");
   const symlinkPath = join(directory, "symlink.toml");
   await writeFile(targetPath, 'model = "target"\n');
-  await symlink(targetPath, symlinkPath);
+  if (!(await symlinkOrSkip(context, targetPath, symlinkPath))) return;
 
   await assert.rejects(
     () => atomicInstallText({ path: symlinkPath, content: 'model = "new"\n' }),
@@ -233,7 +234,7 @@ test("setup engine snapshot rejects non-file paths without following them", asyn
   const configPath = join(directory, "config.toml");
   await writeFile(configPath, 'model = "target"\n');
   const linkPath = join(directory, "link.toml");
-  await symlink(configPath, linkPath);
+  if (!(await symlinkOrSkip(context, configPath, linkPath))) return;
 
   await assert.rejects(() => readConfigSnapshot(linkPath), /symlinked config/);
   assert.equal((await lstat(linkPath)).isSymbolicLink(), true);

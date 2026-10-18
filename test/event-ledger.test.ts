@@ -125,7 +125,7 @@ test("EventLedger deduplicates canonical events, folds turns, and rebuilds after
     assert.equal(JSON.stringify(lines).includes("do it"), false);
     assert.equal(JSON.stringify(lines).includes("done"), false);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -158,7 +158,7 @@ test("EventLedger serial reports the original append error without an unhandled 
     assert.equal((await ledger.snapshot(taskId)).cursor, 1);
   } finally {
     process.off("unhandledRejection", onUnhandled);
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -201,7 +201,7 @@ test("EventLedger folds pending interactions, accepted responses, bounded tail, 
       (error: unknown) => error instanceof EventLedgerError && error.code === "unrecoverable_gap" && error.details.earliestCursor === 1,
     );
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -249,7 +249,7 @@ test("EventLedger reloads writes from another instance and allocates cursors und
     await wait;
     assert.ok(Date.now() - waitStarted < 500, "cross-instance wait should observe the other writer before timeout");
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -267,7 +267,7 @@ test("EventLedger serializes two operating-system processes without duplicate cu
     assert.deepEqual(records.map((record) => record.cursor), Array.from({ length: 40 }, (_, index) => index + 1));
     assert.equal(rawText.includes("SECRET"), false);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -326,7 +326,7 @@ test("EventLedger persists only coordination metadata and tags bridge initiated 
     assert.equal(records[2].coordination.event.type, "assistant/message");
     assert.equal(records[2].coordination.event.data, undefined);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -360,7 +360,7 @@ test("EventLedger deduplicates question resolved by payload questionRpcId before
     assert.equal(duplicate, undefined);
     assert.equal((await ledger.snapshot(taskId)).cursor, 1);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -380,7 +380,7 @@ test("EventLedger structurally deduplicates concurrent queue and jobs snapshots 
     const records = await readLedgerRecords(snapshot.logPath);
     assert.deepEqual(records.map((record) => record.type), ["session/queue", "session/jobs"]);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -403,7 +403,7 @@ test("EventLedger deduplicates live queue fan-out by Host rpcId within one sessi
     assert.equal(otherSession?.cursor, 3, "the same rpcId in a different session must remain independent");
     assert.equal((await restarted.snapshot(taskId)).cursor, 3);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -428,7 +428,7 @@ test("EventLedger snapshot dedupe is last-wins, session/type scoped, and survive
     assert.equal(duplicate, undefined);
     assert.equal((await restarted.snapshot(taskId)).cursor, 5);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -460,7 +460,7 @@ test("EventLedger treats old snapshot records without persisted projection as un
     assert.equal(duplicate, undefined);
     assert.equal((await ledger.snapshot(taskId)).cursor, 2);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });
 
@@ -488,6 +488,6 @@ test("EventLedger snapshot projections persist only structural fields", async ()
       { kind: "jobs", items: [{ id: "job-1", kind: "shell", status: "running", startedAt: "2026-08-15T00:00:00.000Z" }] },
     ]);
   } finally {
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

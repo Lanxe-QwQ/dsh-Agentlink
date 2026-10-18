@@ -52,7 +52,7 @@ test("Claude Code integration exposes project-scoped install plan without origin
     restartRequired: true,
   });
   assert.deepEqual(plan.target, {
-    path: "/tmp/project/.mcp.json",
+    path: join("/tmp/project", ".mcp.json"),
     format: "json",
     scope: "project",
   });
@@ -106,7 +106,7 @@ test("Claude Code integration can include a native project skill operation", () 
   assert.deepEqual(skill, {
     kind: "install-instructions",
     sourcePath: "/tmp/dsh-Agentlink/skill/claude-code-dsh/SKILL.md",
-    targetPath: "/tmp/project/.claude/skills/claude-code-dsh/SKILL.md",
+    targetPath: join("/tmp/project", ".claude", "skills", "claude-code-dsh", "SKILL.md"),
     content: "---\nname: claude-code-dsh\n---\n",
     conflictPolicy: "replace-explicitly",
   });
@@ -139,7 +139,7 @@ test("Claude Code render produces stdio JSON shape and handles paths with spaces
 
 test("Claude Code setup path is project local", () => {
   assert.equal(defaultClaudeCodeConfigPath("/tmp/project"), join("/tmp/project", ".mcp.json"));
-  assert.equal(claudeCodeIntegration.defaultConfigPath({ cwd: "/tmp/project", env: {} }), "/tmp/project/.mcp.json");
+  assert.equal(claudeCodeIntegration.defaultConfigPath({ cwd: "/tmp/project", env: {} }), join("/tmp/project", ".mcp.json"));
 
   const plan = createClaudeCodeInstallPlan({
     cwd: "/tmp/project",
@@ -149,7 +149,7 @@ test("Claude Code setup path is project local", () => {
     replace: false,
   });
   assert.deepEqual(plan.target, {
-    path: "/tmp/project/.mcp.json",
+    path: join("/tmp/project", ".mcp.json"),
     format: "json",
     scope: "project",
   });

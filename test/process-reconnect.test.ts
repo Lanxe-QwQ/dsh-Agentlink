@@ -117,6 +117,6 @@ test("a separate bridge process reconnects after mock Host restart and rebuilds 
     await client?.close().catch(() => undefined);
     await firstHost?.close().catch(() => undefined);
     await secondHost?.close().catch(() => undefined);
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
   }
 });

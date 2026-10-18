@@ -1,7 +1,8 @@
+import { assertMode, symlinkOrSkip } from "./support/platform.js";
 import assert from "node:assert/strict";
 import { chmod, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 
 import {
@@ -267,7 +268,7 @@ test("setup detects bridge tables whose names use escaped or quoted keys", () =>
 
 test("setup does not report inline duplicates plus a matching table as an installed no-op", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-inline-noop-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const configPath = join(directory, "config.toml");
   const invalid = `mcp_servers.dsh_agentlink = { command = "old" }\n\n${block}\n`;
   await writeFile(configPath, invalid, { mode: 0o600 });
@@ -315,16 +316,16 @@ test("setup flags parse non-interactive and replacement choices", () => {
 });
 
 test("setup resolves the Codex config root without repurposing the environment", () => {
-  assert.equal(defaultCodexConfigPath({ CODEX_HOME: "/tmp/custom-codex" }), "/tmp/custom-codex/config.toml");
+  assert.equal(defaultCodexConfigPath({ CODEX_HOME: "/tmp/custom-codex" }), resolve("/tmp/custom-codex", "config.toml"));
   assert.equal(
     codexIntegration.defaultConfigPath({ cwd: "/tmp/project", env: { CODEX_HOME: "/tmp/custom-codex" } }),
-    "/tmp/custom-codex/config.toml",
+    resolve("/tmp/custom-codex", "config.toml"),
   );
 });
 
 test("setup backs up an existing config and preserves private file modes", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-setup-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const configPath = join(directory, "config.toml");
   const original = `model = "gpt-test"\n`;
   await writeFile(configPath, original, { mode: 0o640 });
@@ -336,18 +337,18 @@ test("setup backs up an existing config and preserves private file modes", async
   assert.equal(result.changed, true);
   assert.notEqual(result.backupPath, undefined);
   assert.equal(await readFile(result.backupPath as string, "utf8"), original);
-  assert.equal((await stat(configPath)).mode & 0o777, 0o640);
-  assert.equal((await stat(result.backupPath as string)).mode & 0o777, 0o640);
+  await assertMode(configPath, 0o640);
+  await assertMode(result.backupPath as string, 0o640);
   assert.match(await readFile(configPath, "utf8"), /^model = "gpt-test"/);
 });
 
 test("setup refuses symlinked config files", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-setup-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const targetPath = join(directory, "target.toml");
   const configPath = join(directory, "config.toml");
   await writeFile(targetPath, `model = "gpt-test"\n`);
-  await symlink(targetPath, configPath);
+  if (!(await symlinkOrSkip(context, targetPath, configPath))) return;
 
   await assert.rejects(() => installMcpConfigFile(configPath, block, false), /refusing to replace symlinked/);
   assert.equal(await readFile(targetPath, "utf8"), `model = "gpt-test"\n`);
@@ -355,7 +356,7 @@ test("setup refuses symlinked config files", async (context) => {
 
 test("setup aborts when the config changes after review", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "dsh-agentlink-setup-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 }));
   const configPath = join(directory, "config.toml");
   await writeFile(configPath, `model = "before"\n`, { mode: 0o600 });
   const reviewed = await readConfigSnapshot(configPath);
